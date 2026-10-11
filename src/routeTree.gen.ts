@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiOauthGithubReturnRouteImport } from './routes/api/oauth/github/return'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiOauthGithubReturnRoute = ApiOauthGithubReturnRouteImport.update({
+  id: '/api/oauth/github/return',
+  path: '/api/oauth/github/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/oauth/github/return': typeof ApiOauthGithubReturnRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/oauth/github/return': typeof ApiOauthGithubReturnRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/oauth/github/return': typeof ApiOauthGithubReturnRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/oauth/github/return'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/oauth/github/return'
+  id: '__root__' | '/' | '/api/oauth/github/return'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiOauthGithubReturnRoute: typeof ApiOauthGithubReturnRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/oauth/github/return': {
+      id: '/api/oauth/github/return'
+      path: '/api/oauth/github/return'
+      fullPath: '/api/oauth/github/return'
+      preLoaderRoute: typeof ApiOauthGithubReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiOauthGithubReturnRoute: ApiOauthGithubReturnRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
