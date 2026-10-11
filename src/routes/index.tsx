@@ -4,6 +4,8 @@ import { ArrowRight, ArrowUpRight, Github, ShieldCheck, Shield, Users, UserRound
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import scene from "@/assets/checker-scene.jpg";
+import { GithubAccountBar, GithubAccountProvider, useGithubAccount } from "@/components/GithubAccount";
+import { unfollowGithubUser } from "@/server/github.functions";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -36,7 +38,28 @@ function useWhitelist() {
   return { set: new Set(list), toggle };
 }
 
-function Dashboard({ result }: { result: Result }) {
+function Dashboard(props: { result: Result }) {
+  return <GithubAccountProvider><DashboardInner {...props} /></GithubAccountProvider>;
+}
+
+function DashboardInner({ result: initial }: { result: Result }) {
+  const gh = useGithubAccount();
+  const [unfollowed, setUnfollowed] = useState<Set<string>>(new Set());
+  const [pending, setPending] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
+  const result = { ...initial, following: initial.following.filter(p => !unfollowed.has(p.login.toLowerCase())) };
+  const canUnfollow = !!gh.status?.connected && gh.status.login?.toLowerCase() === initial.username.toLowerCase();
+  async function unfollow(login: string) {
+    if (!window.confirm(`Unfollow @${login} on GitHub?`)) return;
+    setPending(login); setActionError("");
+    try {
+      const r = await unfollowGithubUser({ data: { login } });
+      if (r.ok) setUnfollowed(prev => new Set(prev).add(login.toLowerCase()));
+      else if (r.reason === "reconnect") { gh.markReconnect(); setActionError("Your GitHub access needs to be renewed. Reconnect above."); }
+      else setActionError("Connect GitHub first.");
+    } catch (e) { setActionError(e instanceof Error ? e.message : "Couldn't unfollow."); }
+    finally { setPending(null); }
+  }
   const [tab, setTab] = useState<TabKey>("unfollowers");
   const [query, setQuery] = useState("");
   const whitelist = useWhitelist();
@@ -61,6 +84,9 @@ function Dashboard({ result }: { result: Result }) {
         <div><p className="text-sm text-muted-foreground">Dashboard</p><h2 className="mt-2 text-2xl font-semibold">@{result.username}</h2></div>
         <p className="text-sm text-muted-foreground">{result.followers.length} followers · {result.following.length} following</p>
       </div>
+      <div className="mt-6"><GithubAccountBar /></div>
+      {gh.status?.connected && !canUnfollow && <p className="mt-2 text-xs text-muted-foreground">Unfollow buttons appear when you check your own username (@{gh.status.login}).</p>}
+      {actionError && <p role="alert" className="mt-3 text-sm text-destructive">{actionError}</p>}
       <div role="tablist" aria-label="Connection categories" className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {tabs.map(t => (
           <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className={`rounded-lg border p-3 text-left transition-colors ${tab === t.key ? "border-foreground bg-secondary" : "border-border hover:bg-secondary/50"}`}>
@@ -74,7 +100,7 @@ function Dashboard({ result }: { result: Result }) {
           <div><h3 className="text-lg font-semibold">{active.label}</h3><p className="text-sm text-muted-foreground">{active.hint}</p></div>
           <Input aria-label="Filter usernames" placeholder="Filter usernames" value={query} onChange={e => setQuery(e.target.value)} className="h-10 w-full sm:w-60" />
         </div>
-        {shown.length === 0 ? <p className="py-8 text-muted-foreground">{q ? "No usernames match your filter." : active.empty}</p> : <div className="mt-2 grid gap-x-8 sm:grid-cols-2">{shown.map(person => { const on = isProtected(person); return <div key={person.login} className="flex items-center gap-3 border-b border-border py-4"><a href={person.html_url} target="_blank" rel="noreferrer" className="flex min-w-0 flex-1 items-center gap-3 transition-colors hover:text-muted-foreground">{person.avatar_url ? <img src={person.avatar_url} alt="" loading="lazy" className="size-9 shrink-0 rounded-full bg-secondary" /> : <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary"><Github className="size-4" /></span>}<span className="min-w-0 flex-1 truncate">{person.login}</span><ArrowUpRight className="size-4" /></a><Button type="button" variant={on ? "secondary" : "ghost"} size="icon" onClick={() => whitelist.toggle(person.login)} aria-pressed={on} aria-label={on ? `Remove ${person.login} from protected` : `Protect ${person.login}`} title={on ? "Protected — click to remove" : "Protect this account"}>{on ? <ShieldCheck /> : <Shield />}</Button></div>; })}</div>}
+        {shown.length === 0 ? <p className="py-8 text-muted-foreground">{q ? "No usernames match your filter." : active.empty}</p> : <div className="mt-2 grid gap-x-8 sm:grid-cols-2">{shown.map(person => { const on = isProtected(person); return <div key={person.login} className="flex items-center gap-3 border-b border-border py-4"><a href={person.html_url} target="_blank" rel="noreferrer" className="flex min-w-0 flex-1 items-center gap-3 transition-colors hover:text-muted-foreground">{person.avatar_url ? <img src={person.avatar_url} alt="" loading="lazy" className="size-9 shrink-0 rounded-full bg-secondary" /> : <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary"><Github className="size-4" /></span>}<span className="min-w-0 flex-1 truncate">{person.login}</span><ArrowUpRight className="size-4" /></a>{canUnfollow && (tab === "unfollowers" || tab === "following" || tab === "mutuals") && <Button type="button" variant="outline" size="sm" disabled={pending === person.login} onClick={() => unfollow(person.login)}>{pending === person.login ? <LoaderCircle className="animate-spin" /> : null}Unfollow</Button>}<Button type="button" variant={on ? "secondary" : "ghost"} size="icon" onClick={() => whitelist.toggle(person.login)} aria-pressed={on} aria-label={on ? `Remove ${person.login} from protected` : `Protect ${person.login}`} title={on ? "Protected — click to remove" : "Protect this account"}>{on ? <ShieldCheck /> : <Shield />}</Button></div>; })}</div>}
       </div>
       <p className="mt-5 text-xs text-muted-foreground">A snapshot of your current connections, not a record of past unfollows.</p>
     </section>

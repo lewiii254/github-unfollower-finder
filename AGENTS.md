@@ -9,5 +9,7 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-- Keep the single-page checker at `/` and query GitHub's public API directly from the browser; the page is read-only and does not require credentials or server storage.
+- Keep the checker at `/` and read follower lists from GitHub's public API in the browser, so checking works without sign-in.
+- Account-changing GitHub actions (unfollow) go through server functions using each signed-in user's own GitHub App User Connector connection, stored encrypted in `app_user_connections`; never use shared credentials.
+- Store the protected-accounts whitelist in browser localStorage, since checking needs no account.
 - Describe results as current non-mutual connections, not historical unfollows, because GitHub's public API does not expose unfollower history.
