@@ -19,19 +19,38 @@ export const Route = createFileRoute("/")({
 
 type Person = { login: string; html_url: string; avatar_url?: string };
 type Result = { username: string; followers: Person[]; following: Person[] };
-type TabKey = "unfollowers" | "notMutuals" | "mutuals" | "followers" | "following";
+type TabKey = "unfollowers" | "notMutuals" | "mutuals" | "followers" | "following" | "protected";
+const WHITELIST_KEY = "unfollow:whitelist";
+
+function useWhitelist() {
+  const [list, setList] = useState<string[]>([]);
+  useEffect(() => {
+    try { const saved = JSON.parse(localStorage.getItem(WHITELIST_KEY) || "[]"); if (Array.isArray(saved)) setList(saved.filter((x): x is string => typeof x === "string")); } catch { /* ignore */ }
+  }, []);
+  const toggle = (login: string) => setList(prev => {
+    const key = login.toLowerCase();
+    const next = prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key];
+    localStorage.setItem(WHITELIST_KEY, JSON.stringify(next));
+    return next;
+  });
+  return { set: new Set(list), toggle };
+}
 
 function Dashboard({ result }: { result: Result }) {
   const [tab, setTab] = useState<TabKey>("unfollowers");
   const [query, setQuery] = useState("");
+  const whitelist = useWhitelist();
   const followerSet = new Set(result.followers.map(p => p.login.toLowerCase()));
   const followingSet = new Set(result.following.map(p => p.login.toLowerCase()));
+  const isProtected = (p: Person) => whitelist.set.has(p.login.toLowerCase());
+  const allPeople = [...result.following, ...result.followers.filter(p => !followingSet.has(p.login.toLowerCase()))];
   const tabs: { key: TabKey; label: string; hint: string; empty: string; people: Person[] }[] = [
-    { key: "unfollowers", label: "Not following back", hint: "You follow them, they don't currently follow you.", empty: "Everyone you follow follows you back.", people: result.following.filter(p => !followerSet.has(p.login.toLowerCase())) },
+    { key: "unfollowers", label: "Not following back", hint: "You follow them, they don't currently follow you. Protected accounts are hidden here.", empty: "Everyone you follow follows you back (or is protected).", people: result.following.filter(p => !followerSet.has(p.login.toLowerCase()) && !isProtected(p)) },
     { key: "notMutuals", label: "Not mutuals", hint: "They follow you, you don't follow them back.", empty: "You follow back everyone who follows you.", people: result.followers.filter(p => !followingSet.has(p.login.toLowerCase())) },
     { key: "mutuals", label: "Mutuals", hint: "You follow each other.", empty: "No mutual connections yet.", people: result.following.filter(p => followerSet.has(p.login.toLowerCase())) },
     { key: "followers", label: "Followers", hint: "Everyone who follows you.", empty: "No followers yet.", people: result.followers },
     { key: "following", label: "Following", hint: "Everyone you follow.", empty: "Not following anyone yet.", people: result.following },
+    { key: "protected", label: "Protected", hint: "Accounts you've protected. They never appear in “Not following back”. Saved in this browser.", empty: "No protected accounts yet. Tap the shield next to anyone to protect them.", people: allPeople.filter(isProtected) },
   ];
   const active = tabs.find(t => t.key === tab)!;
   const q = query.trim().toLowerCase();
