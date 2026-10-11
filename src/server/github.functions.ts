@@ -12,7 +12,7 @@ export const startGithubConnect = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { authorizeAppUserOAuth } = await import("@/integrations/lovable/appUserConnector");
     const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
-    const clientAPIKey = process.env.GITHUB_APP_USER_CONNECTOR_CLIENT_API_KEY;
+    const clientAPIKey = process.env['GITHUB_APP_USER_CONNECTOR_CLIENT_API_KEY'];
     if (!clientAPIKey) throw new Error("GitHub connection isn't set up yet.");
     const request = getRequest();
     const url = new URL(request.url);
@@ -25,7 +25,7 @@ export const startGithubConnect = createServerFn({ method: "POST" })
       appUserId: context.userId,
       clientAPIKey,
       returnUrl,
-      connectionAPIKey: existing ?? undefined,
+      ...(existing ? { connectionAPIKey: existing } : {}),
       credentialsConfiguration: { scopes: GITHUB_SCOPES },
     });
     return { authorizationUrl };
