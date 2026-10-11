@@ -17,8 +17,50 @@ export const Route = createFileRoute("/")({
   ] }),
 });
 
-type Person = { login: string; html_url: string };
-type Result = { username: string; followers: number; following: number; people: Person[] };
+type Person = { login: string; html_url: string; avatar_url?: string };
+type Result = { username: string; followers: Person[]; following: Person[] };
+type TabKey = "unfollowers" | "notMutuals" | "mutuals" | "followers" | "following";
+
+function Dashboard({ result }: { result: Result }) {
+  const [tab, setTab] = useState<TabKey>("unfollowers");
+  const [query, setQuery] = useState("");
+  const followerSet = new Set(result.followers.map(p => p.login.toLowerCase()));
+  const followingSet = new Set(result.following.map(p => p.login.toLowerCase()));
+  const tabs: { key: TabKey; label: string; hint: string; empty: string; people: Person[] }[] = [
+    { key: "unfollowers", label: "Not following back", hint: "You follow them, they don't currently follow you.", empty: "Everyone you follow follows you back.", people: result.following.filter(p => !followerSet.has(p.login.toLowerCase())) },
+    { key: "notMutuals", label: "Not mutuals", hint: "They follow you, you don't follow them back.", empty: "You follow back everyone who follows you.", people: result.followers.filter(p => !followingSet.has(p.login.toLowerCase())) },
+    { key: "mutuals", label: "Mutuals", hint: "You follow each other.", empty: "No mutual connections yet.", people: result.following.filter(p => followerSet.has(p.login.toLowerCase())) },
+    { key: "followers", label: "Followers", hint: "Everyone who follows you.", empty: "No followers yet.", people: result.followers },
+    { key: "following", label: "Following", hint: "Everyone you follow.", empty: "Not following anyone yet.", people: result.following },
+  ];
+  const active = tabs.find(t => t.key === tab)!;
+  const q = query.trim().toLowerCase();
+  const shown = q ? active.people.filter(p => p.login.toLowerCase().includes(q)) : active.people;
+  return (
+    <section aria-live="polite" className="mx-auto max-w-5xl px-6 py-12">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6">
+        <div><p className="text-sm text-muted-foreground">Dashboard</p><h2 className="mt-2 text-2xl font-semibold">@{result.username}</h2></div>
+        <p className="text-sm text-muted-foreground">{result.followers.length} followers · {result.following.length} following</p>
+      </div>
+      <div role="tablist" aria-label="Connection categories" className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {tabs.map(t => (
+          <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className={`rounded-lg border p-3 text-left transition-colors ${tab === t.key ? "border-foreground bg-secondary" : "border-border hover:bg-secondary/50"}`}>
+            <span className="block text-2xl font-semibold">{t.people.length}</span>
+            <span className="block text-xs text-muted-foreground">{t.label}</span>
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" className="mt-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><h3 className="text-lg font-semibold">{active.label}</h3><p className="text-sm text-muted-foreground">{active.hint}</p></div>
+          <Input aria-label="Filter usernames" placeholder="Filter usernames" value={query} onChange={e => setQuery(e.target.value)} className="h-10 w-full sm:w-60" />
+        </div>
+        {shown.length === 0 ? <p className="py-8 text-muted-foreground">{q ? "No usernames match your filter." : active.empty}</p> : <div className="mt-2 grid gap-x-8 sm:grid-cols-2">{shown.map(person => <a key={person.login} href={person.html_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 border-b border-border py-4 transition-colors hover:text-muted-foreground">{person.avatar_url ? <img src={person.avatar_url} alt="" loading="lazy" className="size-9 shrink-0 rounded-full bg-secondary" /> : <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary"><Github className="size-4" /></span>}<span className="min-w-0 flex-1 truncate">{person.login}</span><ArrowUpRight className="size-4" /></a>)}</div>}
+      </div>
+      <p className="mt-5 text-xs text-muted-foreground">A snapshot of your current connections, not a record of past unfollows.</p>
+    </section>
+  );
+}
 
 async function getConnections(username: string, kind: "followers" | "following") {
   const people: Person[] = [];
@@ -56,8 +98,7 @@ function Index() {
     setBusy(true); setError(""); setResult(null);
     try {
       const [followers, following] = await Promise.all([getConnections(name, "followers"), getConnections(name, "following")]);
-      const followerNames = new Set(followers.map(person => person.login.toLowerCase()));
-      setResult({ username: name, followers: followers.length, following: following.length, people: following.filter(person => !followerNames.has(person.login.toLowerCase())) });
+      setResult({ username: name, followers, following });
     } catch (err) { setError(err instanceof Error ? err.message : "Something went wrong. Please try again."); }
     finally { setBusy(false); }
   }
@@ -86,7 +127,7 @@ function Index() {
             </form>
           </div>
         </section>
-        {result && <section aria-live="polite" className="mx-auto max-w-4xl px-6 py-12"><div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6"><div><p className="text-sm text-muted-foreground">@{result.username}</p><h2 className="mt-2 text-2xl font-semibold">Not following you back <span className="text-muted-foreground">({result.people.length})</span></h2></div><p className="text-sm text-muted-foreground">{result.followers} followers · {result.following} following</p></div>{result.people.length === 0 ? <p className="py-8 text-muted-foreground">All the people you follow are following you back.</p> : <div className="grid gap-x-8 sm:grid-cols-2">{result.people.map(person => <a key={person.login} href={person.html_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 border-b border-border py-4 transition-colors hover:text-muted-foreground"><span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary"><Github className="size-4" /></span><span className="min-w-0 flex-1 truncate">{person.login}</span><ArrowUpRight className="size-4" /></a>)}</div>}<p className="mt-5 text-xs text-muted-foreground">A snapshot of your current connections, not a record of past unfollows.</p></section>}
+        {result && <Dashboard result={result} />}
         <section id="how-it-works" className="mx-auto max-w-6xl px-6 py-16 md:px-10">
           <div className="mb-10 flex flex-col items-center gap-3 text-center"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Less guessing. More clarity.</p><h2 className="text-3xl font-semibold">Your connections, untangled.</h2><p className="text-sm text-muted-foreground">One username. A clear picture. That’s it.</p></div>
           <div className="grid gap-8 md:grid-cols-3">
