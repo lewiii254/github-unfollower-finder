@@ -4,11 +4,8 @@ import { ArrowRight, ArrowUpRight, Github, ShieldCheck, Shield, Users, UserRound
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import scene from "@/assets/checker-scene.jpg";
-import { GithubAccountBar, GithubAccountProvider, useGithubAccount } from "@/components/GithubAccount";
-import { listConnectionsAsUser, unfollowGithubUser } from "@/lib/github.functions";
 import { useSession } from "@/hooks/useSession";
 
-export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({ meta: [
     { title: "Unfollow — GitHub Unfollower Checker" },
