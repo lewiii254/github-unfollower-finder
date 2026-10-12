@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import scene from "@/assets/checker-scene.jpg";
 import { GithubAccountBar, GithubAccountProvider, useGithubAccount } from "@/components/GithubAccount";
-import { unfollowGithubUser } from "@/server/github.functions";
+import { unfollowGithubUser } from "@/lib/github.functions";
 
 export const Route = createFileRoute("/")({
   component: Index,
