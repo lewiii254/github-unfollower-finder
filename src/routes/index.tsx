@@ -39,30 +39,13 @@ function useWhitelist() {
   return { set: new Set(list), toggle };
 }
 
-function Dashboard(props: { result: Result }) {
-  return <GithubAccountProvider><DashboardInner {...props} /></GithubAccountProvider>;
-}
-
-function DashboardInner({ result: initial }: { result: Result }) {
-  const gh = useGithubAccount();
-  const [unfollowed, setUnfollowed] = useState<Set<string>>(new Set());
-  const [pending, setPending] = useState<string | null>(null);
-  const [actionError, setActionError] = useState("");
-  const result = { ...initial, following: initial.following.filter(p => !unfollowed.has(p.login.toLowerCase())) };
-  const canUnfollow = !!gh.status?.connected && gh.status.login?.toLowerCase() === initial.username.toLowerCase();
-  async function unfollow(login: string) {
-    if (!window.confirm(`Unfollow @${login} on GitHub?`)) return;
-    setPending(login); setActionError("");
-    try {
-      const r = await unfollowGithubUser({ data: { login } });
-      if (r.ok) setUnfollowed(prev => new Set(prev).add(login.toLowerCase()));
-      else if (r.reason === "reconnect") { gh.markReconnect(); setActionError("Your GitHub access needs to be renewed. Reconnect above."); }
-      else setActionError("Connect GitHub first.");
-    } catch (e) { setActionError(e instanceof Error ? e.message : "Couldn't unfollow."); }
-    finally { setPending(null); }
-  }
+function Dashboard({ result }: { result: Result }) {
   const [tab, setTab] = useState<TabKey>("unfollowers");
   const [query, setQuery] = useState("");
+  const [picked, setPicked] = useState<Map<string, string>>(new Map());
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [insights, setInsights] = useState<Insights | null>(null);
   const whitelist = useWhitelist();
   const followerSet = new Set(result.followers.map(p => p.login.toLowerCase()));
   const followingSet = new Set(result.following.map(p => p.login.toLowerCase()));
@@ -79,15 +62,30 @@ function DashboardInner({ result: initial }: { result: Result }) {
   const active = tabs.find(t => t.key === tab)!;
   const q = query.trim().toLowerCase();
   const shown = q ? active.people.filter(p => p.login.toLowerCase().includes(q)) : active.people;
+  const togglePick = (login: string) => setPicked(prev => { const n = new Map(prev); if (n.has(login)) n.delete(login); else n.set(login, active.label); return n; });
+  const pickAllShown = () => setPicked(prev => { const n = new Map(prev); shown.slice(0, 300).forEach(p => n.set(p.login, active.label)); return n; });
+  async function analyze() {
+    setAiBusy(true); setAiError(""); setInsights(null);
+    try {
+      const r = await summarizeConnections({ data: { username: result.username, counts: { followers: result.followers.length, following: result.following.length, mutuals: tabs[2].people.length, notFollowingBack: tabs[0].people.length, notMutuals: tabs[1].people.length }, selected: [...picked].slice(0, 300).map(([login, category]) => ({ login, category })) } });
+      if (r.ok) setInsights(r.insights); else setAiError(r.error);
+    } catch { setAiError("Couldn't reach the AI. Please try again."); }
+    finally { setAiBusy(false); }
+  }
   return (
     <section aria-live="polite" className="mx-auto max-w-5xl px-6 py-12">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6">
         <div><p className="text-sm text-muted-foreground">Dashboard</p><h2 className="mt-2 text-2xl font-semibold">@{result.username}</h2></div>
         <p className="text-sm text-muted-foreground">{result.followers.length} followers · {result.following.length} following</p>
       </div>
-      <div className="mt-6"><GithubAccountBar /></div>
-      {gh.status?.connected && !canUnfollow && <p className="mt-2 text-xs text-muted-foreground">Unfollow buttons appear when you check your own username (@{gh.status.login}).</p>}
-      {actionError && <p role="alert" className="mt-3 text-sm text-destructive">{actionError}</p>}
+      <div className="mt-6 rounded-lg border border-border bg-secondary/40 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><h3 className="flex items-center gap-2 font-semibold"><Sparkles className="size-4" />AI insights</h3><p className="text-sm text-muted-foreground">Tick accounts below, then get a summary and a list worth reviewing. {picked.size} selected.</p></div>
+          <div className="flex gap-2">{picked.size > 0 && <Button variant="ghost" size="sm" onClick={() => setPicked(new Map())}>Clear</Button>}<Button size="sm" disabled={aiBusy || picked.size === 0} onClick={analyze}>{aiBusy ? <LoaderCircle className="animate-spin" /> : <Sparkles />}Summarize</Button></div>
+        </div>
+        {aiError && <p role="alert" className="mt-3 text-sm text-destructive">{aiError}</p>}
+        {insights && <div className="mt-4 space-y-3 text-sm"><p>{insights.summary}</p>{insights.recommendations.length > 0 && <ul className="space-y-2">{insights.recommendations.map(r => <li key={r.login} className="flex flex-wrap items-baseline gap-x-2"><a className="font-semibold underline" href={`https://github.com/${r.login}`} target="_blank" rel="noreferrer">@{r.login}</a><span className="text-muted-foreground">{r.reason}</span></li>)}</ul>}</div>}
+      </div>
       <div role="tablist" aria-label="Connection categories" className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {tabs.map(t => (
           <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className={`rounded-lg border p-3 text-left transition-colors ${tab === t.key ? "border-foreground bg-secondary" : "border-border hover:bg-secondary/50"}`}>
