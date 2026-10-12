@@ -91,7 +91,7 @@ export const disconnectGithub = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-type PublicPerson = { login: string; html_url: string; avatar_url?: string };
+type PublicPerson = { login: string; html_url: string; avatar_url: string };
 
 export const listConnectionsAsUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -119,7 +119,7 @@ export const listConnectionsAsUser = createServerFn({ method: "POST" })
         const batch = await Promise.all(Array.from({ length: Math.min(10, pages - start + 1) || 1 }, async (_, i) => {
           const res = await get(`/users/${u}/${kind}?per_page=100&page=${start + i}`);
           if (!res.ok) throw new Error(`GitHub request failed (${res.status}).`);
-          return ((await res.json()) as PublicPerson[]).map(p => ({ login: p.login, html_url: p.html_url, avatar_url: p.avatar_url }));
+          return ((await res.json()) as PublicPerson[]).map(p => ({ login: p.login, html_url: p.html_url, avatar_url: p.avatar_url ?? "" }));
         }));
         batch.forEach(b => out.push(...b));
       }
