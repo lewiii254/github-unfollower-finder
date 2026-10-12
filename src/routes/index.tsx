@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import scene from "@/assets/checker-scene.jpg";
 import { GithubAccountBar, GithubAccountProvider, useGithubAccount } from "@/components/GithubAccount";
-import { unfollowGithubUser } from "@/lib/github.functions";
+import { listConnectionsAsUser, unfollowGithubUser } from "@/lib/github.functions";
+import { useSession } from "@/hooks/useSession";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -107,30 +108,42 @@ function DashboardInner({ result: initial }: { result: Result }) {
   );
 }
 
-async function getConnections(username: string, kind: "followers" | "following") {
-  const people: Person[] = [];
-  for (let page = 1; page <= 100; page++) {
-    const response = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/${kind}?per_page=100&page=${page}`, { headers: { Accept: "application/vnd.github+json" } });
-    if (!response.ok) {
-      if (response.status === 404) throw new Error("We couldn't find that GitHub username. Check the spelling and try again.");
-      if (response.status === 403 || response.status === 429) throw new Error("GitHub's request limit has been reached. Please try again later.");
-      throw new Error("GitHub is unavailable right now. Please try again in a moment.");
-    }
-    const batch: Person[] = await response.json();
-    people.push(...batch);
-    if (batch.length < 100) return people;
+async function gh(path: string) {
+  const response = await fetch(`https://api.github.com${path}`, { headers: { Accept: "application/vnd.github+json" } });
+  if (!response.ok) {
+    if (response.status === 404) throw new Error("We couldn't find that GitHub username. Check the spelling and try again.");
+    if (response.status === 403 || response.status === 429) throw new Error("GitHub's free hourly limit has been reached. Sign in and connect GitHub for much higher limits, or try again later.");
+    throw new Error("GitHub is unavailable right now. Please try again in a moment.");
   }
-  throw new Error("This account has too many connections for a complete check here.");
+  return response;
+}
+
+async function getPublicConnections(username: string) {
+  const u = encodeURIComponent(username);
+  const profile: { followers: number; following: number } = await (await gh(`/users/${u}`)).json();
+  const pages = (n: number) => Math.max(1, Math.ceil(n / 100));
+  const needed = pages(profile.followers) + pages(profile.following);
+  const limit = await fetch("https://api.github.com/rate_limit").then(r => r.json()).catch(() => null) as { rate?: { remaining: number } } | null;
+  const remaining = limit?.rate?.remaining ?? 60;
+  if (needed > 100 * 2) throw new Error("This account has too many connections for a complete check here.");
+  if (needed > remaining) throw new Error(`This check needs ${needed} GitHub requests, but only ${remaining} free ones are left this hour. Sign in and connect GitHub to check bigger accounts.`);
+  const fetchKind = async (kind: "followers" | "following", total: number) => {
+    const lists = await Promise.all(Array.from({ length: pages(total) }, (_, i) => gh(`/users/${u}/${kind}?per_page=100&page=${i + 1}`).then(r => r.json() as Promise<Person[]>)));
+    return lists.flat();
+  };
+  const [followers, following] = await Promise.all([fetchKind("followers", profile.followers), fetchKind("following", profile.following)]);
+  return { followers, following };
 }
 
 const faqs = [
   ["Do I need to sign in with GitHub?", "No. Just enter a GitHub username. We only read publicly available follower and following lists — no password, token, or account access needed."],
   ["Can I see who recently unfollowed me?", "This check shows the people you follow who don't currently follow you back. GitHub doesn't provide historical unfollower data, so it can't tell you when someone unfollowed you."],
-  ["Is my GitHub account safe?", "Yes. The checker is read-only and makes requests directly to GitHub from your browser. It never follows, unfollows, or changes anything on your account."],
+  ["Is my GitHub account safe?", "Yes. Checking is read-only. Nothing changes on your account unless you sign in, connect GitHub, and press Unfollow yourself."],
   ["Is it really free?", "Yes. There are no paid plans. GitHub's public request limits apply, so you may occasionally need to wait before checking again."],
 ];
 
 function Index() {
+  const { session } = useSession();
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -142,8 +155,12 @@ function Index() {
     if (!/^[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i.test(name)) { setError("Enter a valid GitHub username to get started."); return; }
     setBusy(true); setError(""); setResult(null);
     try {
-      const [followers, following] = await Promise.all([getConnections(name, "followers"), getConnections(name, "following")]);
-      setResult({ username: name, followers, following });
+      let data: { followers: Person[]; following: Person[] } | null = null;
+      if (session) {
+        try { const r = await listConnectionsAsUser({ data: { username: name } }); if (r.ok) data = r; } catch (e) { if (e instanceof Error && /couldn't find/.test(e.message)) throw e; }
+      }
+      if (!data) data = await getPublicConnections(name);
+      setResult({ username: name, followers: data.followers, following: data.following });
     } catch (err) { setError(err instanceof Error ? err.message : "Something went wrong. Please try again."); }
     finally { setBusy(false); }
   }
@@ -179,7 +196,7 @@ function Index() {
             {[{ icon: ScanLine, title: "Start with a username", copy: "Enter your GitHub handle. No passwords, permissions, or complicated setup.", number: "01" }, { icon: Users, title: "We connect the dots", copy: "We compare your public followers and following lists, straight from GitHub.", number: "02" }, { icon: UserRoundMinus, title: "See who’s not following back", copy: "Get a simple list of one-way connections. What you do next is up to you.", number: "03" }].map(item => <div key={item.number} className="border-t border-border pt-6"><div className="mb-5 flex items-center justify-between"><span className="flex size-11 items-center justify-center rounded-lg bg-secondary"><item.icon className="size-5" strokeWidth={1.6} /></span><span className="font-mono text-xs text-muted-foreground">{item.number}</span></div><h3 className="text-base font-semibold">{item.title}</h3><p className="mt-2 max-w-xs text-sm leading-6 text-muted-foreground">{item.copy}</p></div>)}
           </div>
         </section>
-        <section className="border-y border-border bg-secondary/40 px-6 py-7"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-16 gap-y-5 text-sm text-muted-foreground"><span className="flex items-center gap-2"><ShieldCheck className="size-4" />Your account stays yours</span><span className="flex items-center gap-2"><Github className="size-4" />Powered by GitHub’s public API</span><span className="flex items-center gap-2"><LockKeyhole className="size-4" />No account changes. Ever.</span></div></section>
+        <section className="border-y border-border bg-secondary/40 px-6 py-7"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-16 gap-y-5 text-sm text-muted-foreground"><span className="flex items-center gap-2"><ShieldCheck className="size-4" />Your account stays yours</span><span className="flex items-center gap-2"><Github className="size-4" />Powered by GitHub’s public API</span><span className="flex items-center gap-2"><LockKeyhole className="size-4" />No changes unless you click Unfollow</span></div></section>
         <section id="faq" className="mx-auto grid max-w-6xl gap-8 px-6 py-20 md:grid-cols-[1fr_1.5fr] md:px-10"><div><p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Good to know</p><h2 className="text-3xl font-semibold">A few questions,<br />answered.</h2></div><div>{faqs.map(([question, answer], index) => <div key={question} className="border-b border-border"><Button variant="ghost" onClick={() => setOpenFaq(openFaq === index ? null : index)} aria-expanded={openFaq === index} aria-controls={`faq-${index}`} className="h-auto w-full justify-between whitespace-normal rounded-none px-0 py-5 text-left text-sm hover:bg-transparent">{question}<ChevronDown className={`shrink-0 transition-transform ${openFaq === index ? "rotate-180" : ""}`} /></Button>{openFaq === index && <p id={`faq-${index}`} className="pb-5 pr-6 text-sm leading-6 text-muted-foreground">{answer}</p>}</div>)}</div></section>
       </main>
       <footer className="border-t border-border"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-7 text-xs text-muted-foreground md:px-10"><span className="flex items-center gap-2 font-semibold text-foreground"><Github className="size-4" />unfollow.</span><span>Built for a little less guesswork.</span><span>Not affiliated with GitHub.</span></div></footer>
