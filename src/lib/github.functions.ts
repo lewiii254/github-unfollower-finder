@@ -90,3 +90,41 @@ export const disconnectGithub = createServerFn({ method: "POST" })
     await deleteConnectionKeyForUser(context.userId, CONNECTOR);
     return { ok: true };
   });
+
+type PublicPerson = { login: string; html_url: string; avatar_url?: string };
+
+export const listConnectionsAsUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { username: string }) => {
+    const username = String(input?.username ?? "");
+    if (!/^[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i.test(username)) throw new Error("Invalid username");
+    return { username };
+  })
+  .handler(async ({ data, context }) => {
+    const { callAsAppUser, appUserReconnectRequired } = await import("@/integrations/lovable/appUserConnector");
+    const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
+    const key = await getConnectionKeyForUser(context.userId, CONNECTOR);
+    if (!key) return { ok: false as const, reason: "not_connected" as const };
+    const get = (path: string) => callAsAppUser({ gatewayBaseUrl: GATEWAY_BASE_URL, connectionAPIKey: key, connectorId: CONNECTOR, path, init: { headers: GH_HEADERS }, requiredScopes: GITHUB_SCOPES });
+    const u = encodeURIComponent(data.username);
+    const profileRes = await get(`/users/${u}`);
+    if (await appUserReconnectRequired(profileRes)) return { ok: false as const, reason: "reconnect" as const };
+    if (profileRes.status === 404) throw new Error("We couldn't find that GitHub username.");
+    if (!profileRes.ok) throw new Error(`GitHub lookup failed (${profileRes.status}).`);
+    const profile = (await profileRes.json()) as { followers: number; following: number };
+    const fetchAll = async (kind: "followers" | "following", total: number) => {
+      const pages = Math.min(Math.ceil(total / 100), 100);
+      const out: PublicPerson[] = [];
+      for (let start = 1; start <= Math.max(pages, 1); start += 10) {
+        const batch = await Promise.all(Array.from({ length: Math.min(10, pages - start + 1) || 1 }, async (_, i) => {
+          const res = await get(`/users/${u}/${kind}?per_page=100&page=${start + i}`);
+          if (!res.ok) throw new Error(`GitHub request failed (${res.status}).`);
+          return ((await res.json()) as PublicPerson[]).map(p => ({ login: p.login, html_url: p.html_url, avatar_url: p.avatar_url }));
+        }));
+        batch.forEach(b => out.push(...b));
+      }
+      return out;
+    };
+    const [followers, following] = await Promise.all([fetchAll("followers", profile.followers), fetchAll("following", profile.following)]);
+    return { ok: true as const, followers, following };
+  });
