@@ -4,7 +4,7 @@ import { Github, LoaderCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
-import { completeGithubConnect, disconnectGithub, getGithubStatus, startGithubConnect } from "@/server/github.functions";
+import { completeGithubConnect, disconnectGithub, getGithubStatus, startGithubConnect } from "@/lib/github.functions";
 
 type Status = { connected: boolean; reconnectRequired: boolean; login: string | null };
 type Ctx = { signedIn: boolean; status: Status | null; refresh: () => Promise<void>; markReconnect: () => void };
