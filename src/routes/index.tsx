@@ -20,19 +20,8 @@ export const Route = createFileRoute("/")({
 
 type Person = { login: string; html_url: string; avatar_url?: string };
 type Result = { username: string; followers: Person[]; following: Person[] };
-const REPO = ""; // e.g. "your-username/unfollow" — set to enable the live star count
-const REPO_URL = REPO ? `https://github.com/${REPO}` : "https://github.com";
-function useStars() {
-  const [stars, setStars] = useState<number | null>(null);
-  useEffect(() => { if (!REPO) return; fetch(`https://api.github.com/repos/${REPO}`).then(r => r.ok ? r.json() : null).then(d => d && typeof d.stargazers_count === "number" && setStars(d.stargazers_count)).catch(() => {}); }, []);
-  return stars;
-}
-function StarButton() {
-  const stars = useStars();
-  return <Button asChild variant="outline" className="gap-2"><a href={REPO_URL} target="_blank" rel="noreferrer"><Github />Star on GitHub<span className="flex items-center gap-1 border-l border-border pl-2 text-muted-foreground"><Star className="size-3.5" />{stars ?? "Open source"}</span></a></Button>;
-}
-const demoPeople = (prefix: string, n: number): Person[] => Array.from({ length: n }, (_, i) => ({ login: `${prefix}-${i + 1}`, html_url: "https://github.com" }));
-const DEMO: Result = (() => { const mutuals = demoPeople("mutual-dev", 48); return { username: "demo", followers: [...mutuals, ...demoPeople("fan", 80)], following: [...mutuals, ...demoPeople("one-way", 14)] }; })();
+const REPO = "lewiii254/github-unfollower-finder"; // enables the live star count
+const REPO_URL = `https://github.com/${REPO}`;
 
 type TabKey = "unfollowers" | "notMutuals" | "mutuals" | "followers" | "following" | "protected";
 const WHITELIST_KEY = "unfollow:whitelist";
@@ -192,11 +181,6 @@ function Index() {
               {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
               <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground"><span className="flex items-center gap-1.5"><Check className="size-3.5" />No sign-in needed</span><span className="flex items-center gap-1.5"><Check className="size-3.5" />100% free</span><span className="flex items-center gap-1.5"><LockKeyhole className="size-3.5" />Read-only access</span></div>
             </form>
-            {!result && <div className="mx-auto mt-12 max-w-2xl rounded-2xl border border-border bg-background/60 p-5 text-left shadow-lg backdrop-blur-xl">
-              <div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Preview</p><Button size="sm" variant="secondary" onClick={() => setResult(DEMO)}>Try with demo account<ArrowRight /></Button></div>
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{[["48", "Mutuals"], ["14", "Not following back"], ["3", "Protected"], ["128", "Followers"]].map(([n, l]) => <div key={l} className="rounded-lg border border-border bg-background/70 p-3"><span className="block text-xl font-semibold">{n}</span><span className="text-xs text-muted-foreground">{l}</span></div>)}</div>
-              <div className="mt-3 rounded-lg border border-border bg-secondary/50 p-3 text-sm"><p className="flex items-center gap-2 font-semibold"><Sparkles className="size-4" />AI insights</p><p className="mt-1 text-muted-foreground"><span className="font-semibold text-foreground">@one-way-3</span> — inactive for a year and doesn't follow back; worth reviewing.</p></div>
-            </div>}
           </div>
         </section>
         {result && <Dashboard result={result} />}
