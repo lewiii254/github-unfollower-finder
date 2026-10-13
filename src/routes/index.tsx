@@ -9,12 +9,14 @@ import { summarizeConnections, type Insights } from "@/lib/insights.functions";
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({ meta: [
-    { title: "Unfollow — GitHub Unfollower Checker" },
-    { name: "description", content: "Find out who doesn't follow you back on GitHub. Check your public connections with just a username, no sign-in required." },
-    { property: "og:title", content: "Unfollow — GitHub Unfollower Checker" },
-    { property: "og:description", content: "Your GitHub connections, a little clearer. A free, simple way to see who doesn't follow you back." },
+    { title: "GitHub Unfollower Finder — Check Current Non-Mutual Connections" },
+    { name: "description", content: "Check who currently does not follow you back on GitHub using public profile data in your browser—no sign-in required." },
+    { property: "og:title", content: "GitHub Unfollower Finder" },
+    { property: "og:description", content: "A fast GitHub connection checker for current non-mutual follows. No historical unfollower timeline." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: "GitHub Unfollower Finder" },
+    { name: "twitter:description", content: "See current non-mutual GitHub follows instantly with no sign-in." },
   ] }),
 });
 
