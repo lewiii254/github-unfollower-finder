@@ -150,5 +150,5 @@
 .mint-label { background: var(--secondary); color: var(--foreground); }
 html { scroll-behavior: smooth; }
 ::selection { background: var(--secondary); }
-@media (max-width: 640px) { .hero-title { font-size: 43px; line-height: 1.15; } .hero-scene { object-fit: cover; opacity: .5; } }
+@media (max-width: 640px) { .hero-title { font-size: 38px; line-height: 1.15; } .hero-scene { object-fit: cover; opacity: .5; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
