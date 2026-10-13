@@ -22,6 +22,15 @@ type Person = { login: string; html_url: string; avatar_url?: string };
 type Result = { username: string; followers: Person[]; following: Person[] };
 const REPO = "lewiii254/github-unfollower-finder"; // enables the live star count
 const REPO_URL = `https://github.com/${REPO}`;
+function useStars() {
+  const [stars, setStars] = useState<number | null>(null);
+  useEffect(() => { if (!REPO) return; fetch(`https://api.github.com/repos/${REPO}`).then(r => r.ok ? r.json() : null).then(d => d && typeof d.stargazers_count === "number" && setStars(d.stargazers_count)).catch(() => {}); }, []);
+  return stars;
+}
+function StarButton() {
+  const stars = useStars();
+  return <Button asChild variant="outline" className="gap-2"><a href={REPO_URL} target="_blank" rel="noreferrer"><Github />Star on GitHub<span className="flex items-center gap-1 border-l border-border pl-2 text-muted-foreground"><Star className="size-3.5" />{stars ?? "Open source"}</span></a></Button>;
+}
 
 type TabKey = "unfollowers" | "notMutuals" | "mutuals" | "followers" | "following" | "protected";
 const WHITELIST_KEY = "unfollow:whitelist";
