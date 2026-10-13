@@ -37,8 +37,8 @@
 **Requirements:** Node.js 20+ or [Bun](https://bun.sh)
 
 ```bash
-git clone https://github.com/<your-username>/<repo-name>.git
-cd <repo-name>
+git clone https://github.com/lewiii254/github-unfollower-finder.git
+cd github-unfollower-finder
 bun install        # or: npm install
 bun run dev        # or: npm run dev
 ```
