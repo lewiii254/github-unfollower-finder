@@ -25,7 +25,7 @@ const schema = {
 export const summarizeConnections = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data }): Promise<{ ok: true; insights: Insights } | { ok: false; error: string }> => {
-    const key = process.env.LOVABLE_API_KEY;
+    const key = process.env["LOVABLE_API_KEY"];
     if (!key) return { ok: false, error: "AI isn't set up yet." };
     const prompt = `GitHub user @${data.username} follow stats: ${JSON.stringify(data.counts)}.
 Selected accounts (login + category):

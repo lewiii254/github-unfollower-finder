@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, ArrowUpRight, Github, ShieldCheck, Shield, Users, UserRoundMinus, ScanLine, Check, ChevronDown, LoaderCircle, LockKeyhole } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Github, ShieldCheck, Shield, Users, UserRoundMinus, ScanLine, Check, ChevronDown, LoaderCircle, LockKeyhole, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import scene from "@/assets/checker-scene.jpg";
-import { useSession } from "@/hooks/useSession";
+import { summarizeConnections, type Insights } from "@/lib/insights.functions";
 
+export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({ meta: [
     { title: "Unfollow — GitHub Unfollower Checker" },
