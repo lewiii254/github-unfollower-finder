@@ -78,12 +78,30 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Unfollow — GitHub Unfollower Checker" },
-      { name: "description", content: "A little clarity for your GitHub connections." },
-      { property: "og:title", content: "Unfollow — GitHub Unfollower Checker" },
-      { property: "og:description", content: "Check who doesn't follow you back on GitHub." },
+      { title: "GitHub Unfollower Finder — Non-Mutual Connection Checker" },
+      {
+        name: "description",
+        content:
+          "Check current non-mutual GitHub connections from the public API with no sign-in required.",
+      },
+      { name: "application-name", content: "GitHub Unfollower Finder" },
+      { name: "theme-color", content: "#0f172a" },
+      { property: "og:title", content: "GitHub Unfollower Finder" },
+      {
+        property: "og:description",
+        content:
+          "Find current GitHub connections that are not mutual. This tool does not provide historical unfollower timelines.",
+      },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "GitHub Unfollower Finder" },
+      { property: "og:url", content: "https://github-unfollower-finder.vercel.app/" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "GitHub Unfollower Finder" },
+      {
+        name: "twitter:description",
+        content:
+          "Check current non-mutual GitHub connections using public profile data. No historical unfollower log.",
+      },
     ],
     links: [
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=Manrope:wght@500;600;700;800&display=swap" },
@@ -91,7 +109,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "shortcut icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/favicon.svg" },
     ],
   }),
   shellComponent: RootShell,
