@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, ArrowUpRight, Github, ShieldCheck, Shield, Users, UserRoundMinus, ScanLine, Check, ChevronDown, LoaderCircle, LockKeyhole, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Github, ShieldCheck, Shield, Users, UserRoundMinus, ScanLine, Check, ChevronDown, LoaderCircle, LockKeyhole, Sparkles, Star, Cpu, Database, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import scene from "@/assets/checker-scene.jpg";
@@ -20,6 +20,20 @@ export const Route = createFileRoute("/")({
 
 type Person = { login: string; html_url: string; avatar_url?: string };
 type Result = { username: string; followers: Person[]; following: Person[] };
+const REPO = ""; // e.g. "your-username/unfollow" — set to enable the live star count
+const REPO_URL = REPO ? `https://github.com/${REPO}` : "https://github.com";
+function useStars() {
+  const [stars, setStars] = useState<number | null>(null);
+  useEffect(() => { if (!REPO) return; fetch(`https://api.github.com/repos/${REPO}`).then(r => r.ok ? r.json() : null).then(d => d && typeof d.stargazers_count === "number" && setStars(d.stargazers_count)).catch(() => {}); }, []);
+  return stars;
+}
+function StarButton() {
+  const stars = useStars();
+  return <Button asChild variant="outline" className="gap-2"><a href={REPO_URL} target="_blank" rel="noreferrer"><Github />Star on GitHub<span className="flex items-center gap-1 border-l border-border pl-2 text-muted-foreground"><Star className="size-3.5" />{stars ?? "Open source"}</span></a></Button>;
+}
+const demoPeople = (prefix: string, n: number): Person[] => Array.from({ length: n }, (_, i) => ({ login: `${prefix}-${i + 1}`, html_url: "https://github.com" }));
+const DEMO: Result = (() => { const mutuals = demoPeople("mutual-dev", 48); return { username: "demo", followers: [...mutuals, ...demoPeople("fan", 80)], following: [...mutuals, ...demoPeople("one-way", 14)] }; })();
+
 type TabKey = "unfollowers" | "notMutuals" | "mutuals" | "followers" | "following" | "protected";
 const WHITELIST_KEY = "unfollow:whitelist";
 
@@ -160,7 +174,7 @@ function Index() {
       <header className="border-b border-border">
         <nav aria-label="Main navigation" className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6 md:px-10">
           <a href="#" className="flex items-center gap-2.5 text-xl font-bold"><Github className="size-7" strokeWidth={2} />unfollow<span className="-ml-2 text-muted-foreground">.</span></a>
-          <div className="flex items-center gap-7 text-sm"><a href="#how-it-works" className="hidden text-muted-foreground transition-colors hover:text-foreground sm:block">How it works</a><a href="#faq" className="text-muted-foreground transition-colors hover:text-foreground">FAQ</a><Button asChild variant="outline" className="hidden gap-2 sm:inline-flex"><a href="https://github.com" target="_blank" rel="noreferrer"><Github />GitHub<ArrowUpRight /></a></Button></div>
+          <div className="flex items-center gap-7 text-sm"><a href="#how-it-works" className="hidden text-muted-foreground transition-colors hover:text-foreground sm:block">How it works</a><a href="#faq" className="text-muted-foreground transition-colors hover:text-foreground">FAQ</a><span className="hidden sm:inline-flex"><StarButton /></span></div>
         </nav>
       </header>
       <main>
@@ -178,9 +192,18 @@ function Index() {
               {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
               <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground"><span className="flex items-center gap-1.5"><Check className="size-3.5" />No sign-in needed</span><span className="flex items-center gap-1.5"><Check className="size-3.5" />100% free</span><span className="flex items-center gap-1.5"><LockKeyhole className="size-3.5" />Read-only access</span></div>
             </form>
+            {!result && <div className="mx-auto mt-12 max-w-2xl rounded-2xl border border-border bg-background/60 p-5 text-left shadow-lg backdrop-blur-xl">
+              <div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Preview</p><Button size="sm" variant="secondary" onClick={() => setResult(DEMO)}>Try with demo account<ArrowRight /></Button></div>
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{[["48", "Mutuals"], ["14", "Not following back"], ["3", "Protected"], ["128", "Followers"]].map(([n, l]) => <div key={l} className="rounded-lg border border-border bg-background/70 p-3"><span className="block text-xl font-semibold">{n}</span><span className="text-xs text-muted-foreground">{l}</span></div>)}</div>
+              <div className="mt-3 rounded-lg border border-border bg-secondary/50 p-3 text-sm"><p className="flex items-center gap-2 font-semibold"><Sparkles className="size-4" />AI insights</p><p className="mt-1 text-muted-foreground"><span className="font-semibold text-foreground">@one-way-3</span> — inactive for a year and doesn't follow back; worth reviewing.</p></div>
+            </div>}
           </div>
         </section>
         {result && <Dashboard result={result} />}
+        <section className="mx-auto max-w-6xl px-6 pt-16 md:px-10">
+          <div className="mb-8 text-center"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Zero-data guarantee</p><h2 className="mt-3 text-3xl font-semibold">Private by design.</h2></div>
+          <div className="grid gap-4 md:grid-cols-3">{[{ icon: Cpu, t: "100% client-side", c: "Connection lists are fetched directly in your browser." }, { icon: Database, t: "No database logging", c: "Your username and relationships are never stored on our servers." }, { icon: KeyRound, t: "Zero permissions", c: "No OAuth permissions or write access requested." }].map(x => <div key={x.t} className="rounded-xl border border-border p-6"><x.icon className="size-5" strokeWidth={1.6} /><h3 className="mt-4 font-semibold">{x.t}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{x.c}</p></div>)}</div>
+        </section>
         <section id="how-it-works" className="mx-auto max-w-6xl px-6 py-16 md:px-10">
           <div className="mb-10 flex flex-col items-center gap-3 text-center"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Less guessing. More clarity.</p><h2 className="text-3xl font-semibold">Your connections, untangled.</h2><p className="text-sm text-muted-foreground">One username. A clear picture. That’s it.</p></div>
           <div className="grid gap-8 md:grid-cols-3">
@@ -190,7 +213,7 @@ function Index() {
         <section className="border-y border-border bg-secondary/40 px-6 py-7"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-16 gap-y-5 text-sm text-muted-foreground"><span className="flex items-center gap-2"><ShieldCheck className="size-4" />Your account stays yours</span><span className="flex items-center gap-2"><Github className="size-4" />Powered by GitHub’s public API</span><span className="flex items-center gap-2"><LockKeyhole className="size-4" />We never change your account</span></div></section>
         <section id="faq" className="mx-auto grid max-w-6xl gap-8 px-6 py-20 md:grid-cols-[1fr_1.5fr] md:px-10"><div><p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Good to know</p><h2 className="text-3xl font-semibold">A few questions,<br />answered.</h2></div><div>{faqs.map(([question, answer], index) => <div key={question} className="border-b border-border"><Button variant="ghost" onClick={() => setOpenFaq(openFaq === index ? null : index)} aria-expanded={openFaq === index} aria-controls={`faq-${index}`} className="h-auto w-full justify-between whitespace-normal rounded-none px-0 py-5 text-left text-sm hover:bg-transparent">{question}<ChevronDown className={`shrink-0 transition-transform ${openFaq === index ? "rotate-180" : ""}`} /></Button>{openFaq === index && <p id={`faq-${index}`} className="pb-5 pr-6 text-sm leading-6 text-muted-foreground">{answer}</p>}</div>)}</div></section>
       </main>
-      <footer className="border-t border-border"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-7 text-xs text-muted-foreground md:px-10"><span className="flex items-center gap-2 font-semibold text-foreground"><Github className="size-4" />unfollow.</span><span>Built for a little less guesswork.</span><span>Not affiliated with GitHub.</span></div></footer>
+      <footer className="border-t border-border"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-7 text-xs text-muted-foreground md:px-10"><span className="flex items-center gap-2 font-semibold text-foreground"><Github className="size-4" />unfollow.</span><a href={REPO_URL} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-foreground"><Star className="size-3.5" />Proudly open source on GitHub</a><span>Not affiliated with GitHub.</span></div></footer>
     </div>
   );
 }
