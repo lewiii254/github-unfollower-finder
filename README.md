@@ -45,13 +45,7 @@ bun run dev        # or: npm run dev
 
 Open the local URL shown in your terminal and enter a GitHub username.
 
-### Environment
 
-The checker itself needs no configuration. The optional **AI insights** feature runs on the server and needs:
-
-| Variable | Purpose |
-|---|---|
-| `LOVABLE_API_KEY` | Key for the AI Gateway used by the Summarize button (server-side only). |
 
 ### Scripts
 
@@ -150,9 +144,3 @@ Please run `bun run lint` and `bun run test` before submitting.
 ## 📄 License
 
 Released under the [MIT License](LICENSE).
-
-<div align="center">
-
-Built with [Lovable](https://lovable.dev) · If this helped you, consider giving it a ⭐
-
-</div>
